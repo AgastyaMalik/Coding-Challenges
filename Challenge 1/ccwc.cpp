@@ -1,99 +1,103 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>  // For splitting strings into words
 #include <string>
 
 using namespace std;
 
-// Function to count bytes from a file stream
-int countBytes(ifstream& file) {
-    file.seekg(0, ios::end);  // Move to the end of the file
-    return file.tellg();  // Get the size in bytes
-}
-
-// Function to count lines from an input stream
-int countLines(istream& input) {
+// Function to count lines, words, characters, and bytes in a single pass
+void countAll(istream& input, int& lineCount, int& wordCount, int& byteCount, int& charCount) {
     string line;
-    int lineCount = 0;
-    while (getline(input, line)) {  // Read each line
-        lineCount++;  // Increment line count for each line read
-    }
-    return lineCount;  // Return the total line count
-}
+    lineCount = 0;
+    wordCount = 0;
+    byteCount = 0;
+    charCount = 0;
 
-// Function to count words from an input stream
-int countWords(istream& input) {
-    string line;
-    int wordCount = 0;
     while (getline(input, line)) {
-        istringstream iss(line);  // Create a string stream for the line
-        string word;
-        while (iss >> word) {  // Extract words from the line
-            wordCount++;  // Increment word count for each word
+        lineCount++;                // Increment line count
+        byteCount += line.size() + 1; // Count bytes (including newline)
+        charCount += line.size();    // Count characters (excluding newline)
+
+        bool inWord = false;
+        for (char c : line) {
+            if (isspace(c)) {
+                if (inWord) wordCount++; // End of a word
+                inWord = false;
+            } else {
+                inWord = true;
+            }
         }
+        if (inWord) wordCount++;  // Count the last word if line ends without space
     }
-    return wordCount;  // Return the total word count
 }
 
-// Function to count characters from an input stream
-int countCharacters(istream& input) {
-    char ch;
-    int charCount = 0;
-
-    // Read the input character by character
-    while (input.get(ch)) {
-        charCount++;  // Increment character count for each character read
-    }
-
-    return charCount;  // Return the total character count
-}
-
+// Main function to handle argument parsing and file processing
 int main(int argc, char* argv[]) {
-    // Check if at least one argument (option) is provided
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <option> [<filename>]" << endl;
-        return 1;  // Exit with error
+        cerr << "Usage: " << argv[0] << " [-c|-l|-w|-m] [filename]" << endl;
+        return 1;
     }
 
-    string option = argv[1];  // Get the option
-    ifstream file;  // File stream
+    bool hasOption = false;
+    string option = "";
+    string filename = "";
+    ifstream file;
 
-    // Check if a filename is provided
-    if (argc == 3) {
-        string filename = argv[2];  // Get the filename
-        file.open(filename);  // Attempt to open the file
-        if (!file.is_open()) {  // Check if the file opened successfully
+    // Check if first argument is an option (starts with '-')
+    if (argv[1][0] == '-') {
+        hasOption = true;
+        option = argv[1];
+    }
+
+    // Determine the filename based on whether an option is present
+    if (hasOption) {
+        if (argc == 3) {
+            filename = argv[2];  // Filename provided after the option
+        } else {
+            cerr << "Error: No filename provided after option." << endl;
+            return 1;
+        }
+    } else {
+        filename = argv[1];  // First argument is the filename (no option)
+    }
+
+    // Open file if a filename is provided
+    if (!filename.empty()) {
+        file.open(filename);
+        if (!file.is_open()) {
             cerr << "Error: could not open file: " << filename << endl;
-            return 1;  // Exit with error
+            return 1;
         }
     }
 
-    // Determine the input source
-    istream& input = (argc == 3) ? file : cin;  // Use file or standard input
+    // Input stream: either the file or standard input
+    istream& input = (filename.empty()) ? cin : file;
 
-    // Check if the option is valid
-    if (option != "-c" && option != "-l" && option != "-w" && option != "-m") {
-        cerr << "Invalid option! Use -c, -l, -w, or -m." << endl;
-        return 1;  // Exit with error
-    }
+    // Count all necessary metrics in a single pass
+    int lineCount = 0, wordCount = 0, byteCount = 0, charCount = 0;
+    countAll(input, lineCount, wordCount, byteCount, charCount);
 
-    // Handle specific options
-    if (option == "-c") {
-        int byteCount = countBytes(file);  // Call countBytes only if file is provided
-        if (argc == 3 && byteCount != -1) {
-            cout << byteCount << " bytes in " << argv[2] << endl;  // Output byte count
-        } else if (argc == 2) {
-            cout << byteCount << " bytes from standard input" << endl;
+    // Output based on the option
+    if (hasOption) {
+        if (option == "-c") {
+            cout << byteCount << " bytes" << endl;
+        } else if (option == "-l") {
+            cout << lineCount << " lines" << endl;
+        } else if (option == "-w") {
+            cout << wordCount << " words" << endl;
+        } else if (option == "-m") {
+            cout << charCount << " characters" << endl;
+        } else {
+            cerr << "Invalid option! Use -c, -l, -w, or -m." << endl;
+            return 1;
         }
-    } else if (option == "-l") {
-        int lineCount = countLines(input);
-        cout << lineCount << " lines" << endl;  // Output line count
-    } else if (option == "-w") {
-        int wordCount = countWords(input);
-        cout << wordCount << " words" << endl;  // Output word count
-    } else if (option == "-m") {
-        int charCount = countCharacters(input);
-        cout << charCount << " characters" << endl;  // Output character count
+    } else {
+        // Default case: print lines, words, and bytes
+        cout << lineCount << " " << wordCount << " " << byteCount << " ";
+        if (!filename.empty()) {
+            cout << filename << endl;  // If a filename is provided
+        } else {
+            cout << "from standard input" << endl;  // If reading from standard input
+        }
     }
 
     // Close the file if it was opened
@@ -101,5 +105,5 @@ int main(int argc, char* argv[]) {
         file.close();
     }
 
-    return 0;  // Exit successfully
+    return 0;
 }
