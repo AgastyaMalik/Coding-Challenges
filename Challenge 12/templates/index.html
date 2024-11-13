@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        #container { width: 100%; max-width: 400px; text-align: center; }
+        input[type="text"] { width: 100%; padding: 10px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background-color: #007BFF; color: white; border: none; cursor: pointer; }
+        #result { margin-top: 20px; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>URL Shortener</h1>
+        <input type="text" id="urlInput" placeholder="Enter a URL to shorten">
+        <button onclick="shortenUrl()">Shorten URL</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function shortenUrl() {
+            const urlInput = document.getElementById('urlInput').value;
+            fetch('/shorten', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlInput })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.short_url) {
+                    document.getElementById('result').innerHTML = `
+                        <p>Shortened URL:</p>
+                        <input type="text" value="${data.short_url}" id="shortUrl" readonly>
+                        <button onclick="copyToClipboard()">Copy</button>
+                    `;
+                } else {
+                    document.getElementById('result').textContent = "Error: " + data.error;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function copyToClipboard() {
+            const shortUrl = document.getElementById("shortUrl");
+            shortUrl.select();
+            document.execCommand("copy");
+            alert("Shortened URL copied to clipboard!");
+        }
+    </script>
+</body>
+</html>
