@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+
+{% block title %}Playback{% endblock %}
+
+{% block content %}
+<h1 class="text-center">Spotify Player</h1>
+
+<div id="player" class="text-center mt-4">
+    <p>Initializing Spotify Player...</p>
+    <div id="controls" style="display:none;">
+        <div id="track-info">
+            <img id="track-image" src="" alt="Track Image" style="max-width: 100px; border-radius: 8px; margin-bottom: 10px;">
+            <h5 id="track-name">Track Name</h5>
+            <p id="track-artist">Artist Name</p>
+        </div>
+        <div id="playback-controls">
+            <button id="prev-btn" class="btn btn-secondary">Previous</button>
+            <button id="play-btn" class="btn btn-primary">Play</button>
+            <button id="next-btn" class="btn btn-secondary">Next</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://sdk.scdn.co/spotify-player.js"></script>
+<script>
+    window.onSpotifyWebPlaybackSDKReady = () => {
+        const token = "{{ session['access_token'] }}";  // Ensure token is being passed correctly
+        const player = new Spotify.Player({
+            name: "Web Playback SDK Player",
+            getOAuthToken: cb => { cb(token); },
+            volume: 0.5
+        });
+
+        // This will be triggered once the player is ready
+        player.addListener('ready', ({ device_id }) => {
+            console.log('Web Player ready with Device ID', device_id);
+            document.getElementById("player").innerHTML = "<p>Spotify Player is ready!</p>";
+            document.getElementById("controls").style.display = "block";
+
+            // Transfer playback to this device (web player)
+            fetch('https://api.spotify.com/v1/me/player', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    device_ids: [device_id],
+                    play: true
+                })
+            }).then(response => {
+                if (response.ok) {
+                    console.log('Playback transferred to Web Player');
+                    // Automatically resume playback (start playing)
+                    player.resume().then(() => {
+                        console.log("Playback started");
+                    });
+                } else {
+                    console.error('Failed to transfer playback', response);
+                }
+            });
+
+        });
+
+        // Error handling
+        player.addListener('not_ready', ({ device_id }) => {
+            console.error('Web Player not ready with Device ID', device_id);
+        });
+
+        player.addListener('initialization_error', ({ message }) => {
+            console.error('Initialization error:', message);
+        });
+
+        player.addListener('authentication_error', ({ message }) => {
+            console.error('Authentication error:', message);
+        });
+
+        player.addListener('account_error', ({ message }) => {
+            console.error('Account error:', message);
+        });
+
+        // Connect the player
+        player.connect();
+
+        // Control functions for Play, Pause, Next, Previous
+        const playButton = document.getElementById('play-btn');
+        const nextButton = document.getElementById('next-btn');
+        const prevButton = document.getElementById('prev-btn');
+
+        playButton.addEventListener('click', () => {
+            player.togglePlay().then(() => {
+                const isPlaying = player.isPlaying();
+                if (isPlaying) {
+                    playButton.innerText = "Pause";
+                } else {
+                    playButton.innerText = "Play";
+                }
+            });
+        });
+
+        nextButton.addEventListener('click', () => {
+            player.nextTrack().then(() => {
+                console.log('Skipped to next track');
+            });
+        });
+
+        prevButton.addEventListener('click', () => {
+            player.previousTrack().then(() => {
+                console.log('Skipped to previous track');
+            });
+        });
+
+        // Update track info when the track changes
+        player.addListener('player_state_changed', (state) => {
+            if (!state || !state.track_window) return;
+            const track = state.track_window.current_track;
+            document.getElementById('track-name').textContent = track.name;
+            document.getElementById('track-artist').textContent = track.artists.map(artist => artist.name).join(", ");
+            document.getElementById('track-image').src = track.album.images[0].url;
+        });
+    };
+</script>
+{% endblock %}

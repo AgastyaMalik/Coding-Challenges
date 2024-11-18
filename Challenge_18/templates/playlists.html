@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block title %}Playlists{% endblock %}
+
+{% block content %}
+<h1 class="text-center">Your Playlists</h1>
+<form action="/start_playlist" method="POST" class="mt-4">
+    <div class="list-group">
+        {% for playlist in playlists %}
+            <label class="list-group-item d-flex align-items-center">
+                <input
+                    type="radio"
+                    name="playlist_uri"
+                    value="{{ playlist.uri }}"
+                    class="form-check-input me-2"
+                    required
+                />
+                <img
+                    src="{{ playlist.images[0].url if playlist.images else 'https://via.placeholder.com/50' }}"
+                    alt="Playlist Cover"
+                    class="img-fluid rounded me-3"
+                    style="max-width: 50px;"
+                />
+                <span>{{ playlist.name }}</span>
+            </label>
+        {% endfor %}
+    </div>
+    <div class="text-center mt-4">
+        <button class="btn btn-primary" type="submit">Play Selected Playlist</button>
+    </div>
+</form>
+{% endblock %}
